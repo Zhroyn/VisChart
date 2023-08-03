@@ -6,17 +6,17 @@
 
 <template>
   <div class="box">
-    <div class="header m-4">
+    <div class="header">
       <Header />
     </div>
-    <div class="tab1 ml-4 mt-4">
-      <div class="h-full shadow-lg p-4">Tab1</div>
+    <div class="tab1 shadow-lg">
+      <div>Tab1</div>
     </div>
-    <div class="tab2 ml-4 mb-4">
-      <div class="h-full shadow-lg p-4">Tab2</div>
+    <div class="tab2 shadow-lg">
+      <div>Tab2</div>
     </div>
-    <div class="chart mr-4 mt-4 mb-4">
-      <div class="h-full shadow-lg p-4">
+    <div class="chart shadow-lg">
+      <div class="h-full">
         <Chart />
       </div>
     </div>
@@ -50,27 +50,10 @@
 }
 .tab1, .tab2, .chart {
   background-color: #ffffff;
-  font-size: 150%;
-}
-.two { 
-  background: #8CC7B5;
-}
-.three {
-  background: #D1BA74;
-}
-.four {
-  background: #BEE7E9;
-}
-.five {
-  background: #E6CEAC;
-}
-.six {
-  background: #ECAD9E;
-}
-.item {
-  text-align: center;
-  font-size: 200%;
-  color: #fff;
+  font-size: 135%;
+  height: 100%;
+  padding: 1rem;
+  border-radius: 1rem
 }
 </style>
 

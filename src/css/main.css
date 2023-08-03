@@ -1,18 +1,14 @@
 @import './base.css';
 
 #app {
-  /* max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem; */
-
+  padding: 1rem;
   font-weight: normal;
 }
-
 
 html, body, #app {
   height: 100%;
   width: 100%;
-  background-color: #f9f9f9;
+  background-color: var(--vt-c-white-soft);
 }
 
 a,
@@ -27,16 +23,3 @@ a,
     background-color: hsla(160, 100%, 37%, 0.2);
   }
 }
-
-/* @media (min-width: 1024px) {
-  body {
-    display: flex;
-    place-items: center;
-  }
-
-  #app {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    padding: 0 2rem;
-  }
-} */
