@@ -5,6 +5,7 @@
 <script>
 import * as echarts from "echarts/core";
 export default {
+  props: ['dimensions', 'data'],
   mounted() {
     var chartDom = document.getElementById("DefaultChart");
     var myChart = echarts.init(chartDom);

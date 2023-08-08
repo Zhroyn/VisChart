@@ -16,6 +16,7 @@ html, body, #app {
   font-weight: bold;
   font-size: 150%;
 }
+.no-scrollbar::-webkit-scrollbar { width: 0 !important }
 
 a,
 .green {

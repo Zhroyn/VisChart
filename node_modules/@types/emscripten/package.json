@@ -1,0 +1,40 @@
+{
+    "name": "@types/emscripten",
+    "version": "1.39.7",
+    "description": "TypeScript definitions for Emscripten",
+    "homepage": "https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/emscripten",
+    "license": "MIT",
+    "contributors": [
+        {
+            "name": "Kensuke Matsuzaki",
+            "url": "https://github.com/zakki",
+            "githubUsername": "zakki"
+        },
+        {
+            "name": "Periklis Tsirakidis",
+            "url": "https://github.com/periklis",
+            "githubUsername": "periklis"
+        },
+        {
+            "name": "Bumsik Kim",
+            "url": "https://github.com/kbumsik",
+            "githubUsername": "kbumsik"
+        },
+        {
+            "name": "Louis DeScioli",
+            "url": "https://github.com/lourd",
+            "githubUsername": "lourd"
+        }
+    ],
+    "main": "",
+    "types": "index.d.ts",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
+        "directory": "types/emscripten"
+    },
+    "scripts": {},
+    "dependencies": {},
+    "typesPublisherContentHash": "aae8dbde0a25348f932176ab766ddb3ca12e43a6a846863ff0df5a7796e81724",
+    "typeScriptVersion": "4.3"
+}

@@ -1,19 +1,26 @@
 <template>
   <div class="box">
     <div class="header">
-      <Header />
+      <Header
+        @file-upload="handleDataChange"
+      />
     </div>
     <div class="chart-select-tab shadow-lg">
       <ChartSelectTab
-        @change-type="handleChangeChartType"
+        @type-change="handleTypeChange"
       />
     </div>
-    <div class="tab2 shadow-lg">
-      <div>Tab2</div>
+    <div class="data-set-tab shadow-lg overflow-y-scroll no-scrollbar">
+      <DataSetTab
+        :db="db"
+        :chart-type="chartType"
+        @set-change="handleSetChange"
+      />
     </div>
     <div class="chart-tab shadow-lg">
       <ChartTab
-        :chartType="chart_type"
+        :db="db"
+        :chart-type="chartType"
       />
     </div>
   </div>
@@ -24,20 +31,29 @@
 import Header from './components/Header.vue'
 import ChartTab from './components/ChartTab.vue'
 import ChartSelectTab from './components/ChartSelectTab.vue'
+import DataSetTab from './components/DataSetTab.vue'
 export default {
   components: {
     Header: Header,
     ChartTab: ChartTab,
     ChartSelectTab: ChartSelectTab,
+    DataSetTab: DataSetTab,
   },
   data () {
     return {
-      chart_type: "default",
+      chartType: "default",
+      db: null,
     }
   },
   methods: {
-    handleChangeChartType(type) {
-      this.chart_type = type;
+    handleTypeChange(type) {
+      this.chartType = type;
+    },
+    handleDataChange(db) {
+      this.db = db;
+    },
+    handleSetChange(fields) {
+      ;
     }
   }
 }
@@ -49,7 +65,7 @@ export default {
   height: 100%;
   display: grid;
   grid-gap: 16px;
-  grid-template-columns: minmax(250px, 20%) auto;
+  grid-template-columns: minmax(300px, 22%) auto;
   grid-template-rows: 64px 30% auto;
   grid-template-areas: 
     "header header"
@@ -62,13 +78,13 @@ export default {
 .chart-select-tab {
   grid-area: tab1;
 }
-.tab2 {
+.data-set-tab {
   grid-area: tab2;
 }
 .chart-tab {
   grid-area: chart;
 }
-.chart-select-tab, .tab2, .chart-tab {
+.chart-select-tab, .data-set-tab, .chart-tab {
   background-color: #ffffff;
   height: 100%;
   padding: 0.75rem;
@@ -80,7 +96,7 @@ export default {
     height: 100%;
     display: grid;
     grid-gap: 16px;
-    grid-template-columns: minmax(250px, 1fr) minmax(250px, 1fr);
+    grid-template-columns: minmax(250px, 1fr) minmax(400px, 2fr);
     grid-template-rows: 64px 30% auto;
     grid-template-areas: 
       "header header"

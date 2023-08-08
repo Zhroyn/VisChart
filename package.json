@@ -9,9 +9,11 @@
   },
   "dependencies": {
     "echarts": "^5.4.3",
+    "sql.js": "^1.8.0",
     "vue": "^3.3.4"
   },
   "devDependencies": {
+    "@types/sql.js": "^1.4.4",
     "@vitejs/plugin-vue": "^4.2.3",
     "autoprefixer": "^10.4.14",
     "daisyui": "^3.5.0",
