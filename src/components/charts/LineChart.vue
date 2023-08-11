@@ -5,6 +5,7 @@
 <script>
 import * as echarts from "echarts/core";
 export default {
+  props: ['option'],
   mounted() {
     var chartDom = document.getElementById('LineChart');
     var myChart = echarts.init(chartDom);

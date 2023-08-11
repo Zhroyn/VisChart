@@ -92,13 +92,22 @@ export default {
           emphasis: emphasisStyle,
           data: data4
         }
-      ]
+      ],
+      dataZoom:[
+        {
+            type: 'slider',//slider表示有滑动块的，inside表示内置的
+            show: true,
+            xAxisIndex: [0],
+            start: 0,
+            end: 100
+        }
+      ],
     };
     myChart.on('brushSelected', function (params) {
       var brushed = [];
       var brushComponent = params.batch[0];
-      for (var sIdx = 0; sIdx < brushComponent.selected.length; sIdx++) {
-        var rawIndices = brushComponent.selected[sIdx].dataIndex;
+      for (var sIdx = 0; sIdx < brushComteponent.selected.length; sIdx++) {
+        var rawIndices = brushComponent.selecd[sIdx].dataIndex;
         brushed.push('[Series ' + sIdx + '] ' + rawIndices.join(', '));
       }
       myChart.setOption({
