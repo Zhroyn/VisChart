@@ -1,44 +1,46 @@
 <template>
-  <div :class="layout.haveSidebar ? 'with-sidebar' : 'nosidebar'">
+  <div :class="interface.haveSidebar ? 'with-sidebar' : 'nosidebar'">
     <div class="header">
       <Header
-        @interface-component-switch="handleComponentSwitch"
-        @chart-layout-change="handleChartLayoutChange"
+        @component-switch="handleComponentSwitch"
+        @layout-change="handleLayoutChange"
         @file-upload="handleDataChange" />
     </div>
 
-    <div v-if="layout.haveSidebar"
+    <div v-if="interface.haveSidebar"
       class="chart-select-tab shadow-lg">
       <ChartSelectTab 
         :setting="settings[selectedChartIdx]"
-        :chart-idx="selectedChartIdx"
-        :have-tooltip="layout.haveViewTooltip" />
-      </div>
-      
-      <div v-if="layout.haveSidebar"
-        class="data-set-tab shadow-lg overflow-y-scroll no-scrollbar">
+        :chart-index="selectedChartIdx"
+        :have-tooltip="interface.haveViewTooltip"
+        @chart-type-change="handleChartTypeChange" />
+    </div>
+    
+    <div v-if="interface.haveSidebar"
+      class="data-set-tab shadow-lg overflow-y-scroll no-scrollbar">
       <DataSetTab
         :db="db" 
         :setting="settings[selectedChartIdx]"
-        :chart-idx="selectedChartIdx"
-        :chart-layout="layout.chartLayout"
-        @apply-to-chart="updateChart = !updateChart" />
-      </div>
+        :chart-index="selectedChartIdx"
+        :chart-num="chartNum"
+        :field-num="fieldNum"
+        :chart-layout="interface.chartLayout"
+        @apply-to-chart="handleChartUpdate" />
+    </div>
       
-      <div class="charts">
-        <div v-if="refreshAllCharts" :class="layout.chartLayout">
-          <div v-for="i in settings.length" :class="'c' + i + ' shadow-lg'">
-            <ChartTab
-            :db="db"
-            :setting="settings[i - 1]"
-            :settings="settings"
-            :update="updateChart"
-            @apply-to-chart="updateChart = !updateChart"
-            @click="selectedChartIdx = i - 1" />
+    <div class="charts">
+      <div v-if="showCharts" :class="interface.chartLayout">
+        <div v-for="i in chartNum" :class="'c' + i + ' shadow-lg'">
+          <ChartTab
+          :db="db"
+          :setting="settings[i - 1]"
+          :settings="settings"
+          :update="updateCharts[i - 1]"
+          @click="selectedChartIdx = i - 1"
+          @apply-to-chart="handleChartUpdate" />
         </div>
       </div>
     </div>
-    <!-- <button class="btn" @click="settings[0][1] += 1">{{ settings[0] }}</button> -->
   </div>
 </template>
 
@@ -56,98 +58,137 @@ export default {
     ChartSelectTab: ChartSelectTab,
     DataSetTab: DataSetTab,
   },
-  data () {
+
+  data() {
     return {
       db: null,
       fields: [],
-      settings: [{fields:[]}],
-      selectedChartIdx: 0,
-      
-      refreshAllCharts: true,
-      updateChart: true,
-
-      layout: {
+      settings: [
+        {
+          fields: [],
+          chartType: null,
+          haveLegend: false,
+          methodOfAggregation: '总和',
+        }
+      ],
+      interface: {
         haveSidebar: true,
         haveViewTooltip: true,
         chartLayout: "one-chart"
       },
+      
+      chartNum: 1,
+      fieldNum: 0,
+      selectedChartIdx: 0,
+      showCharts: true,
+      updateCharts: [true],
     }
   },
+
   methods: {
-    handleDataChange(db) {
-      this.db = db;
-    },
-    handleComponentSwitch(component) {
-      this.layout[component] = !this.layout[component];
-    },
-    handleChartLayoutChange(chartLayout) {
-      this.layout.chartLayout = chartLayout;
-    },
-    handleSettingChange(fields) {
-      this.fieldSettings = fields;
-    },
-    addFieldsSetting() {
-      for (let i = 0; i < this.settings.length; i++) {
-        this.settings[i].fields = JSON.parse(JSON.stringify(this.fields));
+    initSettings() {
+      this.settings = [];
+      this.updateCharts = [];
+      for (let i = 0; i < this.chartNum; i++) {
+        let setting = {
+          chartType: null,
+          haveLegend: false,
+          methodOfAggregation: 'sum',
+          fields: JSON.parse(JSON.stringify(this.fields)),
+        };
+        this.settings.push(setting);
+        this.updateCharts.push(true);
       }
-    }
-  },
-  watch: {
-    'layout.chartLayout' (newLayout) {
-      this.selectedChartIdx = 0;
-      if (newLayout.includes('one')) {
-        this.settings = [{}];
-      } else if (newLayout.includes('two')) {
-        this.settings = [{}, {}];
-      } else if (newLayout.includes('three')) {
-        this.settings = [{}, {}, {}];
-      }
-
-      this.addFieldsSetting();
-
-      this.refreshAllCharts = false;
+    },
+    destroyAllCharts() {
+      this.showCharts = false;
       this.$nextTick(() => {
-        this.refreshAllCharts = true;
+        this.showCharts = true;
       })
     },
-    db() {
-      var stmt = `SELECT name FROM sqlite_master WHERE type='table'`;
-      var result = this.db.exec(stmt);
-      const tableNames = result[0].values;
+
+    handleComponentSwitch(component) {
+      this.interface[component] = !this.interface[component];
+    },
+    handleLayoutChange(newLayout) {
+      this.interface.chartLayout = newLayout;
+      this.selectedChartIdx = 0;
+      if (newLayout.includes('one')) {
+        this.chartNum = 1;
+      } else if (newLayout.includes('two')) {
+        this.chartNum = 2;
+      } else if (newLayout.includes('three')) {
+        this.chartNum = 3;
+      }
+      
+      this.initSettings();
+      this.destroyAllCharts();
+    },
+    handleChartUpdate(chartIndex) {
+      this.updateCharts[chartIndex] = !this.updateCharts[chartIndex];
+    },
+    handleChartTypeChange(type) {
+      if (type == this.settings[this.selectedChartIdx].chartType) {
+        var chartType = null;
+      } else {
+        var chartType = type;
+      }
+
+      this.settings[this.selectedChartIdx] = {
+          chartType: chartType,
+          haveLegend: false,
+          methodOfAggregation: null,
+          fields: JSON.parse(JSON.stringify(this.fields)),
+      }
+    },
+    handleDataChange(db) {
+      this.db = db;
+      let stmt = `SELECT name FROM sqlite_master WHERE type='table'`;
+      let results = db.exec(stmt);
+      const tableNames = results[0].values;
 
       this.fields = [];
       for (let tableName of tableNames) {
         tableName = tableName[0]
         stmt = `PRAGMA table_info([${tableName}])`;
-        result = this.db.exec(stmt);
+        results = db.exec(stmt);
         
-        for (let fieldInfo of result[0].values) {
-          var field = {};
-          field.tableName = tableName;
-          field.fieldName = fieldInfo[1];
-          field.fieldType = fieldInfo[2];
-          field.bindTo = null;
-          field.relateTo = null;
+        for (let fieldInfo of results[0].values) {
+          const field = {
+            tableName: tableName,
+            fieldName: fieldInfo[1],
+            fieldType: fieldInfo[2],
+            bindTo: [],
+            sendTo: [],
+            relateTo: null,
+            selectable: [],
+          };
 
           if (field.fieldType != 'REAL') {
-            field.sendTo = null;
-            field.selected = null;
-            field.selectable = [];
-            const stmt = `SELECT DISTINCT [${field.fieldName}]
-                          FROM [${field.tableName}]`
-            const results = this.db.exec(stmt);
+            stmt = `SELECT DISTINCT [${field.fieldName}]
+                    FROM [${field.tableName}]`
+            results = db.exec(stmt);
             for (let row of results[0].values) {
               field.selectable.push(row[0])
             }
           }
+          
+          if (field.fieldType == 'TEXT') {
+            field.fieldType = 'category',
+            field.range = [];
+          } else {
+            field.fieldType = 'value';
+            field.range = '';
+          }
 
           this.fields.push(field)
+          this.fieldNum++;
         }
       }
       
-      this.addFieldsSetting();
+      this.initSettings();
     },
-  }
+  },
 }
 </script>
 
@@ -169,8 +210,8 @@ export default {
   height: 100%;
   grid-gap: 12px;
   display: grid;
-  grid-template-columns: minmax(300px, 22%) auto;
-  grid-template-rows: 64px 30% auto;
+  grid-template-columns: max(300px, 22%) auto;
+  grid-template-rows: 64px max(220px, 30%) auto;
   grid-template-areas: 
     "header header"
     "tab1 charts"
@@ -269,8 +310,8 @@ export default {
     height: 100%;
     display: grid;
     grid-gap: 12px;
-    grid-template-columns: minmax(250px, 1fr) minmax(400px, 2fr);
-    grid-template-rows: 64px 30% auto;
+    grid-template-columns: max(250px, 1fr) max(400px, 2fr);
+    grid-template-rows: 64px max(220px, 30%) auto;
     grid-template-areas: 
       "header header"
       "tab1 tab2"

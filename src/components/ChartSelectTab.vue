@@ -1,8 +1,8 @@
 <template>
   <div class="flex flex-col h-full p-1">
     <div class="flex items-baseline gap-3">
-      <p class="wenkai">图表类型</p>
-      <p v-if="haveTooltip" class="wenkai text-sm">当前视图：{{ chartIdx + 1 }}</p>
+      <p class="font-wenkai">图表类型</p>
+      <p v-if="haveTooltip" class="font-wenkai text-sm">当前视图：{{ chartIndex + 1 }}</p>
     </div>
 
     <div class="container justify-center items-center">
@@ -10,16 +10,16 @@
         <button 
           class="btn btn-outline border-x-2 border-y-2 square p-2"
           :class="{
-            'bg-gray-800 text-white': selectedChartType == chartType
+            'bg-gray-800 text-white': setting.chartType == chartType
           }"
-          @click="handleTypeChange(chartType)" 
-          @mouseover="hoveredChartType=chartType"
-          @mouseout="hoveredChartType=null">
+          @click="$emit('chart-type-change', chartType)" 
+          @mouseover="hoveredChartType = chartType"
+          @mouseout="hoveredChartType = null">
           <div class="flex flex-col justify-center items-center gap-2 h-full">
-            <img :src="'/icons/' + chartType + '.svg'" 
+            <img :src="'/images/' + chartType + '.svg'" 
               class="relative top-[3%] h-[60%]"
               :class="{
-                'icon': selectedChartType == chartType || hoveredChartType == chartType
+                'icon': setting.chartType == chartType || hoveredChartType == chartType
               }">
             <p class="relative bottom-[0%] font-bold">{{ chartNameMap[chartType] }}</p>
           </div>
@@ -33,8 +33,8 @@
 
 <script>
 export default {
-  props: ['setting', 'chartIdx', 'haveTooltip'],
-  data () {
+  props: ['setting', 'chartIndex', 'haveTooltip'],
+  data() {
     return {
       chartTypes: ['pie', 'bar', 'line', 'scatter', 'map'],
       chartNameMap: {
@@ -44,36 +44,10 @@ export default {
         "scatter": "散点图",
         "map": "地图",
       },
-      bindableDims: {
-        "pie": ["类目", "角度/半径"],
-        "bar": ["横轴", "纵轴", "颜色"],
-        "line": ["横轴", "纵轴", "颜色"],
-        "scatter": ["横轴", "纵轴", "颜色分类", "颜色渐变", "大小", "形状"],
-        "map": ["地区", "颜色深度", "圆圈半径"]
-      },
-
+      
       hoveredChartType: null,
     }
   },
-  computed: {
-    selectedChartType() {
-      if ('chartType' in this.setting) {
-        return this.setting.chartType;
-      } else {
-        return null;
-      }
-    }
-  },
-  methods: {
-    handleTypeChange(type) {
-      if ('chartType' in this.setting && 
-      this.setting.chartType == type) {
-        this.setting.chartType = null;
-      } else {
-        this.setting.chartType = type;
-      }
-    },
-  }
 }
 </script>
 

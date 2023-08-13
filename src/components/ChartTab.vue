@@ -4,29 +4,49 @@
 
 
 <script>
+import { inject, markRaw } from 'vue'
 import * as echarts from "echarts/core";
-import { markRaw } from 'vue'
+import worldJson from '@/assets/json/world.geo.json'
 
 export default {
+  emits: ['apply-to-chart'],
   props: ['db', 'setting', 'settings','update'],
   data() {
     return {
       chart: null,
-      series: {},
-      a: {},
-
+      data: null,
+      fields: {},
       data: {},
       option: {},
-      bindableDims: {
-        "pie": ["类目", "角度/半径"],
-        "bar": ["横轴", "纵轴", "颜色"],
-        "line": ["横轴", "纵轴", "颜色"],
-        "scatter": ["横轴", "纵轴", "颜色分类", "颜色渐变", "大小", "形状"],
-        "map": ["地区", "颜色深度", "圆圈半径"]
-      },
+      allDims: inject('$allDims'),
+      sendInfo: {},
 
-      colors: ['#d3b7d8', '#a13e97', '#632a7e', '280e3b'],
-      symbols: ['circle', 'rect', 'line', 'roundRect', 'triangle', 'diamond', 'pin', 'arrow'],
+      colors: [
+        '#2775b6',
+        '#c02c38',
+        '#57c3c2',
+        '#eed045',
+        '#7e2065',
+        '#475164',
+        '#f28e16',
+        '#1ba784',
+        '#5e5314',
+      ],
+      symbols: [
+        'circle',
+        'rect',
+        'roundRect',
+        'triangle',
+        'diamond',
+        'pin',
+        'arrow'
+      ],
+
+      mapNames: {
+        '大小': 'size',
+        '颜色渐变': 'lightness',
+        '颜色深度': 'color',
+      },
       sizeMap: {
         dimension: null,
         text: [],
@@ -34,367 +54,387 @@ export default {
           inRange: {
             color: []
           },
-          outOfRange: {
-            color: ['#999']
-          }
         },
-        left: 'right',
-        top: '10%',
-        calculable: true,
         inRange: {
-          symbolSize: [10, 70]
+          symbolSize: [10, 30]
         },
         outOfRange: {
-          symbolSize: [10, 70],
+          symbolSize: [10, 30],
           color: ['rgba(255,255,255,0.4)']
         },
+        top: 0,
+        calculable: true,
       },
-      colorMap: {
+      lightnessMap: {
         dimension: null,
         text: [],
         controller: {
           inRange: {
             color: []
           },
-          outOfRange: {
-            color: ['#999']
-          }
         },
-        left: 'right',
-        bottom: '5%',
-        calculable: true,
         inRange: {
           colorLightness: [0.9, 0.5]
         },
         outOfRange: {
           color: ['rgba(255,255,255,0.4)']
         },
+        calculable: true,
+      },
+      colorMap: {
+        dimension: null,
+        text: [],
+        inRange: {
+          color: ['rgba(255, 255, 255, 0.4)']
+        },
+        calculable: true,
       },
     }
   },
 
   mounted() {
-    var chart = markRaw(echarts.init(this.$refs.chart));
-    
-    function resizeChart() {
-        chart.resize();
-    }
-    window.addEventListener("resize", resizeChart);
-    resizeChart();
-    
-    this.chart = chart
-    this.chart.setOption({})
+    this.creatChart();
+    this.chart.setOption({});
+    echarts.registerMap('worldMap', worldJson)
   },
-
+  
   methods: {
-    updateChart() {
-      console.log(this.bindings);
+    creatChart() {
+      var chart = markRaw(echarts.init(this.$refs.chart));
+
+      function resizeChart() {
+        chart.resize();
+      }
+      window.addEventListener("resize", resizeChart);
+      resizeChart();
+
+      this.chart = chart
+    },
+
+    updateChart() {      
+      console.log("数据绑定为", this.bindings);
       var option = {};
       option.tooltip = {};
       option.legend = {}
       option.visualMap = [];
       option.dataset = [];
       option.series = [];
-      option.dataZoom = [{type: 'slider'}, {type: 'slider', yAxisIndex: 0}];
       
-      const fields = this.getFields(option);
+      const fields = this.getFields();
       if (fields == false) {
         return false;
       }
-      
-      const data = this.getData(fields);
+      const data = this.getData();
       if (data == false) {
         return false;
       }
       option.dataset.push({source: data});
 
-      this.setSeries(option, fields);
+      this.chart.dispose();
+      this.creatChart()
+
+      this.setAxis(option);
+      this.setSeries(option);
+      this.setVisualMap(option);
       this.setTooltip(option);
       this.setToolbox(option);
-      this.setLegend(option)
+      this.setLegend(option);
+      this.setDataZoom(option);
 
-      console.log(option)
-      this.chart.setOption(option)
+      this.addSendEvent();
+
+      console.log("图表设置为", option);
+      this.chart.setOption(option);
     },
 
-    getFields(option) {
-      var fields = [];
-      var categoryField = this.getCategoryField(option);
-      var valueField = this.getValueField(option);
-      if (categoryField == null || valueField == null) {
+    getFields() {
+      const chartType = this.setting.chartType;
+      if (chartType == null) {
         return false;
       }
-      fields.push(categoryField);
-      fields.push(valueField);
+      let fields = {};
+      let dimIndex = 0;
 
-      if ('颜色' in this.bindings) {
-        var colorField = this.setting.fields[this.bindings['颜色']];
-        fields.push(colorField)
+      for (let dim of ['x', 'y']) {
+        if (this.allDims[chartType][dim] in this.bindings) {
+          fields[dim] = {
+            fieldIndex: this.bindings[this.allDims[chartType][dim]],
+            dimIndex: dimIndex++,
+          };
+        }
       }
-      if ('颜色分类' in this.bindings) {
-        var colorClassField = this.setting.fields[this.bindings['颜色分类']];
-        fields.push(colorClassField)
-      }
-      if ('颜色渐变' in this.bindings) {
-        var colorShadingField = this.setting.fields[this.bindings['颜色渐变']];
-        fields.push(colorShadingField)
-      }
-      if ('大小' in this.bindings) {
-        var sizeField = this.setting.fields[this.bindings['大小']];
-        fields.push(sizeField)
-      }
-      if ('形状' in this.bindings) {
-        var shapeField = this.setting.fields[this.bindings['形状']];
-        fields.push(shapeField)
+      if (!('x' in fields) || !('y' in fields)) {
+        return false;
       }
 
+      for (let dim of ['sep', 'map']) {
+        if (dim in this.allDims[chartType]) {
+          for (let dimName of this.allDims[chartType][dim]) {
+            if (dimName in this.bindings) {
+              if (!(dim in fields)) {
+                fields[dim] = {};
+              }
+              fields[dim][dimName] = {
+                fieldIndex: this.bindings[dimName],
+                dimIndex: dimIndex++,
+              };
+            }
+          }
+        }
+      }
+
+      if (this.setting.methodOfAggregation != null
+      && this.setting.methodOfAggregation.method != null) {
+        fields.aggregation = {
+          fieldIndex: this.setting.methodOfAggregation.fieldIndex,
+          dimIndex: dimIndex++,
+        };
+      }
+
+      console.log(fields)
+      this.fields = fields;
       return fields;
     },
-    getCategoryField(option) {
-      if ('横轴' in this.bindings) {
-        var categoryField = this.setting.fields[this.bindings['横轴']];
-        option.xAxis = {
-          name: categoryField.fieldName,
-        }
-        if (categoryField.fieldType != 'REAL') {
-          option.xAxis.type = 'category';
-        }
-      } else if ('类目' in this.bindings) {
-        var categoryField = this.setting.fields[this.bindings['类目']];
-      } else if ('地区' in this.bindings) {
-        var categoryField = this.setting.fields[this.bindings['地区']];
-      } else {
-        var categoryField = null;
-      }
-      return categoryField;
-    },
-    getValueField(option) {
-      if ('纵轴' in this.bindings) {
-        var valueField = this.setting.fields[this.bindings['纵轴']];
-        option.yAxis = {
-          "name": valueField.fieldName
-        }
-      } else if ('角度/半径' in this.bindings) {
-        var valueField = this.setting.fields[this.bindings['角度/半径']];
-      } else if ('颜色深度' in this.bindings) {
-        var valueField = this.setting.fields[this.bindings['颜色深度']];
-      } else {
-        var valueField = null;
-      }
-      return valueField;
-    },
 
-    getData(fields) {
-      var stmt = `SELECT DISTINCT 
-                  [${fields[0].tableName}].[${fields[0].fieldName}],
-                  [${fields[1].tableName}].[${fields[1].fieldName}] `
-      
-      for (let i = 2; i < fields.length; i++) {
-        stmt += `,[${fields[i].tableName}].[${fields[i].fieldName}] `
+    getData() {
+      var stmt = "SELECT DISTINCT "
+      stmt = this.addFieldNames(stmt);
+      stmt = this.addFromTables(stmt);
+      if (stmt == false) {
+        return false
       }
+      stmt = this.addConditions(stmt);
 
-      stmt = this.addFromTables(stmt, fields);
-      stmt = this.addSelectedConditions(stmt);
-
-      console.log(stmt)
+      console.log("数据库查询语句为", stmt)
       const results = this.db.exec(stmt);
       var data = results[0].values
 
-      const chartType = this.setting.chartType
-      if (chartType != 'scatter') {
-        if (chartType == 'pie' || chartType == 'map' || !('颜色' in this.bindings)) {
-          data = this.processDataWithTwoFields(data);
-        } else {
-          data = this.processDataWithThreeFields(data);
-        }
-      }
-
+      data = this.aggregateData(data);
+      this.data = data;
       return data;
     },
-
-    addFromTables(stmt, fields){
-      var tableNames = [];
-      for (let field of fields) {
-        if (!(tableNames.includes(field.tableName))) {
-          tableNames.push(field.tableName);
-        }
+    
+    addFieldNames(stmt) {
+      const field = this.setting.fields[this.fieldsIndex[0]];
+      stmt += `[${field.tableName}].[${field.fieldName}] `;
+      for (let i = 1; i < this.fieldsIndex.length; i++) {
+        const field = this.setting.fields[this.fieldsIndex[i]];
+        stmt += `, [${field.tableName}].[${field.fieldName}] `;
       }
-
-      if (tableNames.length == 1) {
-        stmt += `FROM [${fields[0].tableName}] `
+      return stmt;
+    },
+    addFromTables(stmt){
+      if (this.tables.length == 1) {
+        stmt += `FROM [${this.setting.fields[this.fields.x.fieldIndex].tableName}] `
       } else {
-        const relations = this.getRelations(tableNames);
-        if (relations.length == 0) {
-          console.log('用到不同表的字段时，应该指定表之间关联的字段！')
+        if (this.relations.length == 0) {
+          console.log('用到不同表的字段时，应该指定表之间的字段的关联！')
           return false;
         }
         
-        stmt += `FROM [${tableNames[0]}] `
-        tableNames.shift()
-        while (tableNames.length > 0) {
-          stmt += `, [${tableNames[0]}] `
-          tableNames.shift()
+        stmt += `FROM [${this.tables[0]}] `
+        for (let i = 1; i < this.tables.length; i++) {
+          stmt += `, [${this.tables[i]}] `
         }
         
-        let field1 = this.setting.fields[relations[0][0]];
-        let field2 = this.setting.fields[relations[0][1]];
-        stmt += `WHERE [${field1.tableName}].[${field1.fieldName}] = [${field2.tableName}].[${field2.fieldName}] `
-        relations.shift()
-        while (relations.length > 0) {
-          field1 = this.setting.fields[relations[0][0]];
-          field2 = this.setting.fields[relations[0][1]];
-          stmt += `AND [${field1.tableName}].[${field1.fieldName}] = [${field2.tableName}].[${field2.fieldName}] `
-          relations.shift();
+        let f1 = this.setting.fields[this.relations[0][0]];
+        let f2 = this.setting.fields[this.relations[0][1]];
+        stmt += `WHERE [${f1.tableName}].[${f1.fieldName}] = [${f2.tableName}].[${f2.fieldName}] `
+        for (let i = 1; i < this.relations.length; i++) {
+          f1 = this.setting.fields[this.relations[i][0]];
+          f2 = this.setting.fields[this.relations[i][1]];
+          stmt += `AND [${f1.tableName}].[${f1.fieldName}] = [${f2.tableName}].[${f2.fieldName}] `
         }
       }
 
       return stmt
     },
-    getRelations(tableNames) {
-      var relations = [];
-      for (let i = 0; i < this.setting.fields.length; i++) {
-        let targetIndex = this.setting.fields[i].relateTo;
-        if (targetIndex != null &&
-        tableNames.includes(this.setting.fields[i].tableName) &&
-        tableNames.includes(this.setting.fields[targetIndex].tableName)) {
-          relations.push([i, targetIndex])
-        }
-      }
-      return relations;
-    },
-    addSelectedConditions(stmt){
+    addConditions(stmt){
+      const xField = this.setting.fields[this.fields.x.fieldIndex];
+      const yField = this.setting.fields[this.fields.y.fieldIndex];
+      stmt += stmt.includes("WHERE") ? "AND " : "WHERE ";
+      stmt += `[${xField.tableName}].[${xField.fieldName}] != "" `
+      stmt += `AND [${yField.tableName}].[${yField.fieldName}] != "" `
+      
       for (let field of this.setting.fields) {
-        if ('selected' in field && field.selected != null) {
-          if (stmt.includes("WHERE")) {
-            stmt += `AND [${field.tableName}].[${field.fieldName}] = "${field.selected}"`
-          } else {
-            stmt += `WHERE [${field.tableName}].[${field.fieldName}] = "${field.selected}"`
+        if (this.tables.includes(field.tableName)) {
+          if (field.fieldType == 'category' && field.range.length > 0) {
+            stmt += `AND [${field.tableName}].[${field.fieldName}] IN ("${field.range[0]}"`
+            for (let i = 1; i < field.range.length; i++) {
+              stmt += `,"${field.range[i]}"`
+            }
+            stmt += ") "
+          } else if (field.fieldType == 'value' && field.range != '') {
+            const conditions = field.range.split(",");
+            stmt += `AND [${field.tableName}].[${field.fieldName}] ${conditions[0]} `
+            for (let i = 1; i < conditions.length; i++) {
+              stmt += `AND [${field.tableName}].[${field.fieldName}] ${conditions[i]} `
+            }
           }
         }
       }
       return stmt;
     },
     
-    processDataWithTwoFields(data) {
-      var values = {}
+    aggregateData(data) {
+      if (this.setting.methodOfAggregation.method == null) {
+        return data;
+      }
+
+      const xFieldType = this.setting.fields[this.fields.x.fieldIndex].fieldType;
+      let sums = {};
+      let counts = {};
       for (let row of data) {
-        if (row[1] != '') {
-          if (!(row[0] in values)) {
-            values[row[0]] = [0];
+        const key = JSON.stringify(row.slice(2));
+        const value = row.slice(0, 2);
+        if (!(key in sums)) {
+          sums[key] = value;
+          counts[key] = 1;
+        } else {
+          if (xFieldType == 'value') {
+            sums[key][0] += value[0];
           }
-          values[row[0]][0] += row[1];
-          values[row[0]].push(row[1]);
+          sums[key][1] += value[1];
+          counts[key]++;
         }
       }
-      
-      var newData = [];
-      for (let x in values) {
-        if (this.setting.methodOfTakingValue == '总和' ||
-        this.setting.methodOfTakingValue == null) {
-          newData.push([x, values[x][0]]);
-        } else if (this.setting.methodOfTakingValue == '平均值') {
-          newData.push([x, values[x][0] / (values[x].length - 1)]);
-        }
-      }
-      return newData;
-    },
-    processDataWithThreeFields(data) {
-      var values = {};
-      for (let row of data) {
-        if (row[1] != '') {
-          if (!(row[0] in values)) {
-            values[row[0]] = {};
+
+      let newData = [];
+      for (let key in sums) {
+        let row = sums[key].concat(JSON.parse(key));
+        if (this.setting.methodOfAggregation.method == 'average') {
+          if (xFieldType == 'value') {
+            row[0] /= counts[key];
           }
-          if (!(row[2] in values[row[0]])) {
-            values[row[0]][row[2]] = [0]
-          }
-          values[row[0]][row[2]][0] += row[1];
-          values[row[0]][row[2]].push(row[1]);
+          row[1] /= counts[key];
         }
-      }
-      
-      var newData = [];
-      for (let dim1 in values) {
-        for (let dim2 in values[dim1]) {
-          if (this.setting.methodOfTakingValue == '总和' ||
-          this.setting.methodOfTakingValue == null) {
-            newData.push([dim1, values[dim1][dim2][0], dim2]);
-          } else if (this.setting.methodOfTakingValue == '平均值') {
-            newData.push([dim1, values[dim1][dim2][0] / (values[dim1][dim2].length - 2), dim2]);
-          }
-        }
+        newData.push(row);
       }
       return newData;
     },
 
-    setSeries(option, fields) {
-      var datasetIndex = 1;
-      if (fields.length == 2) {
-        option.series.push({
-          type: this.setting.chartType,
-          emphasis: {
-            focus: 'self'
+    setAxis(option) {
+      switch (this.setting.chartType) {
+        case 'bar':
+        case 'line':
+        case 'scatter':
+          for (let dim of ['x', 'y']) {
+            const field = this.setting.fields[this.fields[dim].fieldIndex];
+            option[dim + "Axis"] = {
+              name: field.fieldName,
+              type: field.fieldType,
+            }
           }
-        })
+          break;
       }
-      for (let i = 2; i < fields.length; i++) {
-        if (fields[i].fieldType != 'REAL') {
-          for (let value of fields[i].selectable) {
+    },
+    setSeries(option) {
+      if ('sep' in this.fields) {
+        let datasetIndex = 1;
+        for (let dimName in this.fields.sep) {
+          const fieldIndex = this.fields.sep[dimName].fieldIndex;
+          const dimIndex = this.fields.sep[dimName].dimIndex;
+          const chartType = this.setting.chartType;
+          let i = 0;
+          for (let value of this.setting.fields[fieldIndex].selectable) {
             option.dataset.push({
               transform: {
                 type: 'filter',
-                config: {dimension: i, '=': value}
+                config: { dimension: dimIndex, '=': value }
               }
-            })
+            });
             var series = {
               name: value,
-              datasetIndex: datasetIndex,
-              type: this.setting.chartType,
+              type: chartType,
+              datasetIndex: datasetIndex++,
               emphasis: {
                 focus: 'series'
               }
             }
-            if (this.setting.chartType == 'line') {
+            if (dimName == '形状') {
+              series.symbol = this.symbols[i++ % this.symbols.length]
+            }
+            if (chartType == 'line' || chartType == 'bar') {
               series.stack = 'Total';
               series.areaStyle = {};
             }
-            option.series.push(series)
-            datasetIndex++;
+            option.series.push(series);
           }
+        }
+      } else {
+        var series = {
+          type: this.setting.chartType,
+          emphasis: {
+            focus: 'self'
+          }
+        };
+        if (this.setting.chartType == 'map') {
+          series.name = this.setting.fields[this.fields.y.fieldIndex].fieldName;
+          series.roam = true;
+          series.map = 'worldMap';
+        }
+        option.series.push(series)
+      }
+    },
+    setVisualMap(option) {
+      if (this.setting.chartType == 'map') {
+        const field = this.setting.fields[this.fields.y.fieldIndex];
+        this.colorMap.dimension = 1;
+        this.colorMap.text.push(field.fieldName);
+        this.colorMap.inRange.color.push(this.colors[0]);
+        this.colorMap.max = this.getMax(1);
+        this.colorMap.min = this.getMin(1);
+        option.visualMap.push(this.colorMap);
+      }
+      if ('map' in this.fields) {
+        let i = 0;
+        for (let dimName in this.fields.map) {
+          const fieldIndex = this.fields.map[dimName].fieldIndex;
+          const dimIndex = this.fields.map[dimName].dimIndex;
+          const field = this.setting.fields[fieldIndex];
+          this[this.mapNames[dimName] + 'Map'].dimension = dimIndex;
+          this[this.mapNames[dimName] + 'Map'].text.push(field.fieldName);
 
-          this.chart.on('mouseover', (params) => {
-            var sendTo = fields[i].sendTo
-            for (var fieldIndex = 0; fieldIndex < this.setting.fields.length; fieldIndex++) {
-              let field = this.setting.fields[fieldIndex]
-              if (field.fieldName == sendTo.categoryName && field.tableName == sendTo.tableName) {
-                break;
-              }
-            }
-            if (fieldIndex >= this.setting.fields.length) {
-              console.log('找不到')
-              return;
-            }
-            this.series.fieldIndex = fieldIndex;
-            this.series.seriesName = params.seriesName;
-            if ('chartIdx' in fields[i].sendTo) {
-              this.series.chartIdx = fields[i].sendTo.chartIdx;
-            }
-          })
+          const color = this.colors[i++ % this.colors.length];
+          this[this.mapNames[dimName] + 'Map'].controller.inRange.color = color;
+          this[this.mapNames[dimName] + 'Map'].max = this.getMax(dimIndex);
+          this[this.mapNames[dimName] + 'Map'].min = this.getMin(dimIndex);
+
+          option.visualMap.push(this[this.mapNames[dimName] + 'Map']);
         }
       }
     },
+    getMax(dimIndex) {
+      let max = this.data[0][dimIndex];
+      for (let i = 1; i < this.data.length; i++) {
+        if (this.data[i][dimIndex] > max) {
+          max = this.data[i][dimIndex];
+        }
+      }
+      return max;
+    },
+    getMin(dimIndex) {
+      let min = this.data[0][dimIndex];
+      for (let i = 1; i < this.data.length; i++) {
+        if (this.data[i][dimIndex] < min) {
+          min = this.data[i][dimIndex];
+        }
+      }
+      return min;
+    },
+
     setToolbox(option) {
       option.brush = {
         toolbox: ['rect', 'polygon', 'lineX', 'lineY', 'keep', 'clear'],
         xAxisIndex: 0
-      }
+      };
       option.toolbox = {
         feature: {
-          magicType: {
-            type: ['stack']
-          },
           dataView: {}
         }
+      };
+      if (this.setting.chartType == 'bar') {
+        option.toolbox.feature.magicType = { type: ['stack'] }
       }
     },
     setTooltip(option) {
@@ -412,29 +452,100 @@ export default {
     },
     setLegend(option) {
       if (this.setting.haveLegend != undefined && this.setting.haveLegend) {
-        console.log(this.setting.haveLegend)
         option.legend.show = true;
       } else {
         option.legend.show = false;
       }
+    },
+    setDataZoom(option) {
+      switch (this.setting.chartType) {
+        case 'bar':
+        case 'line':
+        case 'scatter':
+          option.dataZoom = [
+            {type: 'slider'}, 
+            {type: 'slider', yAxisIndex: 0}
+          ];
+          break;
+      }
+    },
+
+    addSendEvent() {
+      const xField = this.setting.fields[this.fields.x.fieldIndex];
+      if (xField.fieldType == 'value' && !('sep' in this.fields)) {
+        return;
+      } else if (xField.fieldType == 'category') {
+        const dimIndex = this.fields.x.dimIndex;
+        this.sendInfo.fieldIndex = this.fields.x.fieldIndex;
+        this.chart.on('mouseover', (event) => {
+          this.sendInfo.value = event.value[dimIndex];
+        })
+      } else if (Object.keys(this.fields.sep).length == 1) {
+        const dimName = Object.keys(this.fields.sep)[0];
+        const dimIndex = this.fields.sep[dimName].dimIndex;
+        this.sendInfo.fieldIndex = this.fields.sep[dimName].fieldIndex;
+        this.chart.on('mouseover', (event) => {
+          this.sendInfo.value = event.value[dimIndex];
+        })
+      }
+      
     }
   },
   
   computed: {
     bindings() {
-      var bindings = {};
-      if (this.setting.chartType == undefined) {
+      let bindings = {};
+      if (this.setting.chartType == null) {
         return bindings;
       }
-      for (let dimName of this.bindableDims[this.setting.chartType]) {
-        for (let i = 0; i < this.setting.fields.length; i++) {
-          if (this.setting.fields[i].bindTo == dimName) {
-            bindings[dimName] = i;
-            break;
-          }
+      for (let i = 0; i < this.setting.fields.length; i++) {
+        for (let dimName of this.setting.fields[i].bindTo) {
+          bindings[dimName] = i;
         }
       }
       return bindings;
+    },
+    fieldsIndex() {
+      let fieldsIndex = [
+        this.fields.x.fieldIndex,
+        this.fields.y.fieldIndex
+      ];
+  
+      for (let dim of ['sep', 'map']) {
+        if (dim in this.fields) {
+          for (let dimName in this.fields[dim]) {
+            fieldsIndex.push(this.fields[dim][dimName].fieldIndex);
+          }
+        }
+      }
+  
+      if ('aggregation' in this.fields) {
+        fieldsIndex.push(this.fields.aggregation.fieldIndex);
+      }
+  
+      return fieldsIndex;
+    },
+    tables() {
+      let tables = [];
+      for (let index of this.fieldsIndex) {
+        const tableName = this.setting.fields[index].tableName;
+        if (!(tables.includes(tableName))) {
+          tables.push(tableName)
+        }
+      }
+      return tables
+    },
+    relations() {
+      let relations = [];
+      for (let i = 0; i < this.setting.fields.length; i++) {
+        let targetIndex = this.setting.fields[i].relateTo;
+        if (targetIndex != null &&
+        this.tables.includes(this.setting.fields[i].tableName) &&
+        this.tables.includes(this.setting.fields[targetIndex].tableName)) {
+          relations.push([i, targetIndex])
+        }
+      }
+      return relations;
     },
   },
 
@@ -442,12 +553,13 @@ export default {
     update() {
       this.updateChart();
     },
-    series: {
-      handler(newValue) {
-        this.settings[newValue.chartIdx].fields[newValue.fieldIndex].selected = newValue.seriesName;
-        this.$emit('apply-to-chart');
-      },
-      deep: true,
+    'sendInfo.value'() {
+      const fieldIndex = this.sendInfo.fieldIndex;
+      const field = this.setting.fields[fieldIndex];
+      for (let chartIndex of field.sendTo) {
+        this.settings[chartIndex].fields[fieldIndex].range = [this.sendInfo.value];
+        this.$emit('apply-to-chart', chartIndex);
+      }
     }
   },
 };

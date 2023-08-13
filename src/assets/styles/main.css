@@ -1,0 +1,44 @@
+@import './base.css';
+
+#app {
+  padding: 1rem;
+  font-weight: normal;
+}
+
+html, body, #app {
+  height: 100%;
+  width: 100%;
+  background-color: var(--vt-c-white-soft);
+}
+
+a,
+.green {
+  text-decoration: none;
+  color: hsla(160, 100%, 37%, 1);
+  transition: 0.4s;
+}
+
+@media (hover: hover) {
+  a:hover {
+    background-color: hsla(160, 100%, 37%, 0.2);
+  }
+}
+
+.no-scrollbar::-webkit-scrollbar { width: 0 !important }
+
+@font-face {
+  font-family: '霞鹜文楷';
+  src: url('/fonts/LXGWWenKaiMono-Regular.ttf') format('truetype');
+}
+@font-face {
+  font-family: '思源黑体';
+  src: url('/fonts/SourceHanSansSC-Regular.otf') format('opentype');
+}
+.font-wenkai {
+  font-family: "霞鹜文楷";
+  font-weight: bold;
+  font-size: 150%;
+}
+body {
+  font-family: Cascadia Code,'思源黑体', 'Fira Sans', sans-serif;
+}

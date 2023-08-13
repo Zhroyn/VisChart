@@ -1,6 +1,6 @@
 <template>
   <div class="flex flex-col h-full p-1">
-    <p class="wenkai">数据设置</p>
+    <p class="font-wenkai">数据设置</p>
     <div class="flex flex-row h-full overflow-hidden">
       <!-- 左侧选择栏 -->
       <div class="flex flex-col flex-none w-[80px]
@@ -18,8 +18,7 @@
       </div>
       
       <!-- 右侧设置栏 -->
-      <div
-        v-if="setting.fields.length > 0"
+      <div v-if="fieldNum > 0"
         class="flex-auto flex-col justify-between w-auto px-4 overflow-y-scroll">
         <div>
           <!-- 显示字段的基本信息 -->
@@ -27,24 +26,80 @@
             <p class="my-2 break-words">来自表：{{ setting.fields[activeTab].tableName }}</p>
             <p class="my-2 break-words">字段名称：{{ setting.fields[activeTab].fieldName }}</p>
           </div>
-  
-          <!-- 将字段绑定到图表的维度上 -->
+          
+          <!-- 选择字段的类型 -->
           <div class="flex flex-row items-center my-2">
+            <p class="whitespace-nowrap">字段类型：</p>
+            <select 
+              v-model="setting.fields[activeTab].fieldType"
+              class="flex select select-bordered select-sm w-full max-w-xs"
+              @click="handleFieldTypeChange">
+              <option :value="'category'">类别</option>
+              <option :value="'value'">值</option>
+            </select>
+          </div>
+          
+          <!-- 将字段绑定到图表的维度上 -->
+          <div class="flex flex-row my-2">
             <p class="whitespace-nowrap">绑定到：</p>
             <select 
               v-model="setting.fields[activeTab].bindTo"
-              class="flex select select-bordered select-sm w-full max-w-xs"
+              class="h-6 flex select select-bordered select-sm w-full max-w-xs"
+              multiple="multiple"
               @click="handleSelectDim">
-              <option :value="null">请选择</option>
               <option
-                v-for="dimName of bindableDims[setting.chartType]"
+                v-for="dimName of bindableDims"
                 :value="dimName">
                 {{ dimName }}
               </option>
             </select>
           </div>
-  
-          <!-- 设置不同表的字段之间的关联 -->
+          
+          <!-- 选择将当前字段发送到哪个视图 -->
+          <div v-if="chartNum > 1">
+            <div class="flex flex-row my-2">
+              <p class="whitespace-nowrap">发送到：</p>
+              <select 
+                v-model="setting.fields[activeTab].sendTo"
+                class="flex select select-bordered select-sm w-full max-w-xs"
+                multiple="multiple">
+                <option
+                  v-for="index of otherCharts"
+                  :value="index">
+                  视图{{ index + 1 }}
+                </option>
+              </select>
+            </div>
+          </div>
+          
+          <!-- 设置字段的取值范围 -->
+          <div v-if="setting.fields[activeTab].fieldType == 'category'">
+            <div class="flex flex-row my-2">
+              <p class="whitespace-nowrap">取值范围：</p>
+              <select 
+                v-model="setting.fields[activeTab].range"
+                class="flex select select-bordered select-sm w-full max-w-xs"
+                multiple="multiple">
+                <option
+                  v-for="value of setting.fields[activeTab].selectable"
+                  :value="value">
+                  {{ value }}
+                </option>
+              </select>
+            </div>
+          </div>
+          <div v-if="setting.fields[activeTab].fieldType == 'value'">
+            <div class="flex flex-row my-2">
+              <p class="whitespace-nowrap">取值范围：</p>
+              <input
+                type="text"
+                placeholder="请输入"
+                v-model="setting.fields[activeTab].range"
+                class="input input-bordered input-sm w-full max-w-xs ml-2" />
+            </div>
+          </div>
+          
+          <!-- 设置不同表的字段的关联 -->
           <div class="flex flex-row items-center my-2">
             <p class="whitespace-nowrap">关联字段：</p>
             <select 
@@ -59,55 +114,44 @@
             </select>
           </div>
           
-          <!-- 当字段为类目时可以设置 -->
-          <div v-if="setting.fields[activeTab].fieldType != 'REAL'">
-            <div class="divider m-0"></div>
-            <div class="flex flex-row items-center my-2">
-              <p class="whitespace-nowrap">取值范围：</p>
+          <!-- 以下为当前表的通用设置 -->
+          <div class="divider m-0"></div>
+
+          <!-- 选择一个类型为 category 字段作为聚合的单位并选择聚合的方法 -->
+          <div class="flex flex-row items-center my-2">
+            <p class="whitespace-nowrap">聚合方法：</p>
+            <div v-if="xFieldIndex == null">
               <select 
-                v-model="setting.fields[activeTab].selected"
+                v-model="setting.methodOfAggregation"
                 class="flex select select-bordered select-sm w-full max-w-xs">
-                <option :value="null">全选</option>
-                <option
-                  v-for="value of setting.fields[activeTab].selectable"
-                  :value="value">
-                  {{ value }}
-                </option>
+                <option :value="null">请先进行绑定</option>
               </select>
             </div>
-
-            <div class="flex flex-row items-center my-2">
-              <p class="whitespace-nowrap">取值方法：</p>
+            <div v-else>
               <select 
-                v-model="setting.methodOfTakingValue"
+                v-model="setting.methodOfAggregation"
                 class="flex select select-bordered select-sm w-full max-w-xs">
-                <option :value="undefined">请选择</option>
-                <option
-                  v-for="method of ['总和', '平均值']"
-                  :value="method">
-                  {{ method }}
-                </option>
+                <template v-if="setting.fields[xFieldIndex].fieldType == 'value'">
+                  <option :value="{ method: null }">不聚合</option>
+                </template>
+                <template v-for="fieldIndex of aggregatableFieldsIndex">
+                  <option 
+                    :value="{ method: 'sum', fieldIndex: fieldIndex }">
+                    以 {{ setting.fields[fieldIndex].fieldName }} - {{ setting.fields[fieldIndex].tableName }} 取总和
+                  </option>
+                  <option 
+                    :value="{ method: 'average', fieldIndex: fieldIndex }">
+                    以 {{ setting.fields[fieldIndex].fieldName }} - {{ setting.fields[fieldIndex].tableName }} 取平均值
+                  </option>
+                </template>
               </select>
             </div>
-
-            <div class="flex flex-row items-center my-2">
-              <p class="whitespace-nowrap">发送到：</p>
-              <select 
-                v-model="setting.fields[activeTab].sendTo"
-                class="flex select select-bordered select-sm w-full max-w-xs">
-                <option :value="null">请选择</option>
-                <option
-                  v-for="category of otherCategories"
-                  :value="category">
-                  视图{{ category.chartIdx + 1 }} - {{ category.categoryName }} - {{ category.tableName }}
-                </option>
-              </select>
-            </div>
-
-            <div class="flex flex-row items-center my-2">
-              <p class="whitespace-nowrap">有无图例：</p>
-              <input type="checkbox" v-model="setting.haveLegend" class="checkbox" />
-            </div>
+          </div>
+          
+          <!-- 设置有无图例 -->
+          <div class="flex flex-row items-center my-2">
+            <p class="whitespace-nowrap">有无图例：</p>
+            <input type="checkbox" v-model="setting.haveLegend" class="checkbox" />
           </div>
 
         </div>
@@ -116,12 +160,11 @@
         <div class="flex justify-end mt-4">
           <button 
             class="btn btn-neutral btn-sm text-white border-x-2 border-y-2" 
-            @click="$emit('apply-to-chart')">
+            @click="$emit('apply-to-chart', chartIndex)">
             应用
           </button>
         </div>
       </div>
-      <!-- <button class="btn" @click="console.log(setting)">1</button> -->
     </div>
   </div>
 </template>
@@ -129,27 +172,14 @@
 
 
 <script>
+import { inject } from 'vue';
+
 export default {
-  props: ['db', 'setting', 'chartIdx', 'chartLayout'],
+  props: ['db', 'setting', 'chartIndex', 'chartNum', 'fieldNum', 'chartLayout'],
   data() {
     return {
-      options: [1, 2, 3],
       activeTab: 0,
-      
-      bindableDims: {
-        "pie": ["类目", "角度/半径"],
-        "bar": ["横轴", "纵轴", "颜色"],
-        "line": ["横轴", "纵轴", "颜色"],
-        "scatter": ["横轴", "纵轴", "颜色分类", "颜色渐变", "大小", "形状"],
-        "map": ["地区", "颜色深度", "圆圈半径"]
-      },
-      chartNameMap: {
-        "bar": "柱状图",
-        "pie": "饼状图",
-        "line": "折线图",
-        "scatter": "散点图",
-        "map": "地图"
-      },
+      allDims: inject('$allDims'),
     }
   },
 
@@ -157,6 +187,21 @@ export default {
     db() {
       this.activeTab = 0;
     },
+    xFieldIndex(newValue) {
+      if (newValue == null) {
+        this.setting.methodOfAggregation = null;
+      } else {
+        const xField = this.setting.fields[newValue];
+        if (xField.fieldType == 'value') {
+          this.setting.methodOfAggregation = { method: null };
+        } else {
+          this.setting.methodOfAggregation = {
+            method: 'sum',
+            fieldIndex: newValue,
+          };
+        }
+      }
+    }
   },
 
   methods: {
@@ -170,12 +215,20 @@ export default {
       }
       return text;
     },
+    handleFieldTypeChange() {
+      if (this.setting.fields[this.activeTab].fieldType == 'category') {
+        this.setting.fields[this.activeTab].range = [];
+      } else {
+        this.setting.fields[this.activeTab].range = '';
+      }
+    },
     handleSelectDim(event) {
       const selectedDim = event.target.value;
-      for (let i = 0; i < this.setting.fields.length; i++) {
-        if (i != this.activeTab &&
-        this.setting.fields[i].bindTo == selectedDim) {
-          this.setting.fields[i].bindTo = null;
+      for (let i = 0; i < this.fieldNum; i++) {
+        if (i != this.activeTab 
+        && this.setting.fields[i].bindTo.includes(selectedDim)) {
+          const index = this.setting.fields[i].bindTo.indexOf(selectedDim);
+          this.setting.fields[i].bindTo.splice(index, 1);
         }
       }
     }
@@ -183,7 +236,7 @@ export default {
 
   computed: {
     tabs() {
-      var tabs = [];
+      let tabs = [];
       for (let field of this.setting.fields) {
         let fieldName = field.fieldName;
         if (this.isChinese(fieldName) && fieldName.length > 10) {
@@ -195,45 +248,76 @@ export default {
       }
       return tabs
     },
-    categories() {
-      let categories = [];
+    tables() {
+      let tables = [];
       for (let field of this.setting.fields) {
-        if (field.fieldType != 'REAL') {
-          let category = {};
-          category.categoryName = field.fieldName;
-          category.tableName = field.tableName;
-          categories.push(category)
+        if (field.bindTo.length > 0 && !(tables.includes(field.tableName))) {
+          tables.push(field.tableName);
         }
       }
-      return categories;
+      return tables;
+    },
+    bindableDims() {
+      if (this.setting.chartType == null) {
+        return [];
+      } else {
+        let chartType = this.setting.chartType;
+        let fieldType = this.setting.fields[this.activeTab].fieldType;
+        return this.allDims[chartType][fieldType];
+      }
+    },
+    aggregatableFieldsIndex() {
+      let aggregatableFieldsIndex = [];
+      if (this.xFieldIndex != null) {
+        if (this.setting.fields[this.xFieldIndex].fieldType == 'category') {
+          aggregatableFieldsIndex.push(this.xFieldIndex);
+        } else {
+          for (let i = 0; i < this.fieldNum; i++) {
+            const field = this.setting.fields[i];
+            if (field.fieldType == 'category' 
+            && this.tables.includes(field.tableName)) {
+              aggregatableFieldsIndex.push(i);
+            }
+          }
+        }
+      }
+      return aggregatableFieldsIndex;
+    },
+    xFieldIndex() {
+      if (this.setting.chartType == null) {
+        return null;
+      }
+      let xDimName = this.allDims[this.setting.chartType].x
+      for (var i = 0; i < this.fieldNum; i++) {
+        if (this.setting.fields[i].bindTo.includes(xDimName)) {
+          break;
+        }
+      }
+      if (i < this.fieldNum) {
+        return i;
+      } else {
+        return null;
+      }
     },
     otherFields() {
       let otherFields = [];
       let currentTable = this.setting.fields[this.activeTab].tableName;
-      for (let i = 0; i < this.setting.fields.length; i++) {
+      for (let i = 0; i < this.fieldNum; i++) {
         if (this.setting.fields[i].tableName != currentTable) {
           otherFields.push(i);
         }
       }
       return otherFields;
     },
-    otherCategories() {
-      let otherCategories = [];
-      let chartNum = (this.chartLayout.includes("one")) ? 1 : 
-                     (this.chartLayout.includes("two") ? 2 : 3);
-      for (let i = 0; i < chartNum; i++) {
-        if (i != this.chartIdx) {
-          for (let category of this.categories) {
-            let otherCategory = {}
-            otherCategory.chartIdx = i;
-            otherCategory.categoryName = category.categoryName;
-            otherCategory.tableName = category.tableName;
-            otherCategories.push(otherCategory)
-          }
+    otherCharts() {
+      let otherCharts = [];
+      for (let i = 0; i < this.chartNum; i++) {
+        if (i != this.chartIndex) {
+          otherCharts.push(i)
         }
       }
-      return otherCategories;
-    }
+      return otherCharts;
+    },
   }
 }
 </script>
