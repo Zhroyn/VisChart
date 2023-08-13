@@ -556,8 +556,24 @@ export default {
     'sendInfo.value'() {
       const fieldIndex = this.sendInfo.fieldIndex;
       const field = this.setting.fields[fieldIndex];
+
+      let relatedFieldsIndex = [fieldIndex];
+      for (let i = 0; i < this.setting.fields.length; i++) {
+        const targetIndex = this.setting.fields[i].relateTo;
+        if (targetIndex != null) {
+          if (relatedFieldsIndex.includes(i)) {
+            relatedFieldsIndex.push(targetIndex)
+          }
+          if (relatedFieldsIndex.includes(targetIndex)) {
+            relatedFieldsIndex.push(i);
+          }
+        }
+      }
+
       for (let chartIndex of field.sendTo) {
-        this.settings[chartIndex].fields[fieldIndex].range = [this.sendInfo.value];
+        for (let i of relatedFieldsIndex) {
+          this.settings[chartIndex].fields[i].range = [this.sendInfo.value];
+        }
         this.$emit('apply-to-chart', chartIndex);
       }
     }
