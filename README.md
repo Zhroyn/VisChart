@@ -3,7 +3,7 @@ VisChart 是一个基于 web 前端开发的可视化分析系统，支持上传
 
 
 ## 效果展示
-![image](./images/c8158e5c-92b2-4e30-82b9-6b322a268eba.gif)
+![image](./images/af80d084-2d4e-4092-b85f-f72522cb3b07.gif)
 
 
 ## 配置运行
