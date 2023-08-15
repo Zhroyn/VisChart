@@ -68,7 +68,7 @@ export default {
           fields: [],
           chartType: null,
           haveLegend: false,
-          methodOfAggregation: '总和',
+          methodOfAggregation: null,
         }
       ],
       interface: {
@@ -119,6 +119,8 @@ export default {
         this.chartNum = 2;
       } else if (newLayout.includes('three')) {
         this.chartNum = 3;
+      } else if (newLayout.includes('four')) {
+        this.chartNum = 4;
       }
       
       this.initSettings();
@@ -287,6 +289,16 @@ export default {
     "c1 c3"
     "c2 c3";
 }
+.four-charts {
+  height: 100%;
+  grid-gap: 12px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  grid-template-areas:
+    "c1 c2"
+    "c3 c4";
+}
 .c1 {
   grid-area: c1;
 }
@@ -296,9 +308,12 @@ export default {
 .c3 {
   grid-area: c3;
 }
+.c4 {
+  grid-area: c4;
+}
 
 
-.chart-select-tab, .data-set-tab, .c1, .c2, .c3 {
+.chart-select-tab, .data-set-tab, .c1, .c2, .c3, .c4 {
   background-color: #ffffff;
   height: 100%;
   padding: 0.75rem;

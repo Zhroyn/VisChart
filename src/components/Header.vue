@@ -20,6 +20,7 @@
           <li @click="$emit('layout-change', 'three-charts-l2r1')"><a>三视图-左2右1</a></li>
           <li @click="$emit('layout-change', 'three-charts-t1b2')"><a>三视图-上1下2</a></li>
           <li @click="$emit('layout-change', 'three-charts-t2b1')"><a>三视图-上2下1</a></li>
+          <li @click="$emit('layout-change', 'four-charts')"><a>四视图-四宫格</a></li>
         </ul>
       </div>
     </div>
